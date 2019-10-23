@@ -1,5 +1,5 @@
 QUnit.module( "attributes", {
-	teardown: moduleTeardown
+	afterEach: moduleTeardown
 } );
 
 function bareObj( value ) {
@@ -488,29 +488,6 @@ QUnit.test( "attr(non-ASCII)", function( assert ) {
 	assert.equal( $div.attr( "AØC" ), "alpha", ".attr() exclusively lowercases characters in the range A-Z (gh-2730)" );
 } );
 
-QUnit.test( "attr - extending the boolean attrHandle", function( assert ) {
-	assert.expect( 1 );
-	var called = false,
-		origAttrHandleHadChecked = "checked" in jQuery.expr.attrHandle,
-		origAttrHandleChecked = jQuery.expr.attrHandle.checked,
-		_handle = origAttrHandleChecked || $.noop;
-	jQuery.expr.attrHandle.checked = function() {
-		called = true;
-		_handle.apply( this, arguments );
-	};
-	jQuery( "#qunit-fixture input" ).attr( "checked" );
-	called = false;
-	jQuery( "#qunit-fixture input" ).attr( "checked" );
-	assert.ok( called, "The boolean attrHandle does not drop custom attrHandles" );
-
-	if ( origAttrHandleHadChecked ) {
-		jQuery.expr.attrHandle.checked = origAttrHandleChecked;
-	} else {
-		delete jQuery.expr.attrHandle.checked;
-	}
-
-} );
-
 QUnit.test( "attr(String, Object) - Loaded via XML document", function( assert ) {
 	assert.expect( 2 );
 	var xml = createDashboardXML(),
@@ -989,29 +966,37 @@ QUnit.test( "val() with non-matching values on dropdown list", function( assert 
 	select6.remove();
 } );
 
-if ( "value" in document.createElement( "meter" ) &&
-			"value" in document.createElement( "progress" ) ) {
+QUnit.test( "val() respects numbers without exception (Bug #9319) - progress",
+	function( assert ) {
 
-	QUnit.test( "val() respects numbers without exception (Bug #9319)", function( assert ) {
+	assert.expect( 2 );
 
-		assert.expect( 4 );
+	var $progress = jQuery( "<progress max='10' value='1.5'></progress>" );
 
-		var $meter = jQuery( "<meter min='0' max='10' value='5.6'></meter>" ),
-			$progress = jQuery( "<progress max='10' value='1.5'></progress>" );
+	try {
+		assert.equal( typeof $progress.val(), "number", "progress, returns a number and does not throw exception" );
+		assert.equal( $progress.val(), $progress[ 0 ].value, "progress, api matches host and does not throw exception" );
 
-		try {
-			assert.equal( typeof $meter.val(), "number", "meter, returns a number and does not throw exception" );
-			assert.equal( $meter.val(), $meter[ 0 ].value, "meter, api matches host and does not throw exception" );
+	} catch ( e ) {}
 
-			assert.equal( typeof $progress.val(), "number", "progress, returns a number and does not throw exception" );
-			assert.equal( $progress.val(), $progress[ 0 ].value, "progress, api matches host and does not throw exception" );
+	$progress.remove();
+} );
 
-		} catch ( e ) {}
+// IE doesn't support <meter>
+QUnit.testUnlessIE( "val() respects numbers without exception (Bug #9319) - meter",
+	function( assert ) {
 
-		$meter.remove();
-		$progress.remove();
-	} );
-}
+	assert.expect( 2 );
+
+	var $meter = jQuery( "<meter min='0' max='10' value='5.6'></meter>" );
+
+	try {
+		assert.equal( typeof $meter.val(), "number", "meter, returns a number and does not throw exception" );
+		assert.equal( $meter.val(), $meter[ 0 ].value, "meter, api matches host and does not throw exception" );
+	} catch ( e ) {}
+
+	$meter.remove();
+} );
 
 var testVal = function( valueObj, assert ) {
 	assert.expect( 9 );
@@ -1270,7 +1255,7 @@ QUnit.test( "addClass(Array)", function( assert ) {
 } );
 
 QUnit.test( "addClass(Function) with incoming value", function( assert ) {
-	assert.expect( 52 );
+	assert.expect( 57 );
 	var pass, i,
 		div = jQuery( "#qunit-fixture div" ),
 		old = div.map( function() {
@@ -1278,10 +1263,8 @@ QUnit.test( "addClass(Function) with incoming value", function( assert ) {
 		} );
 
 	div.addClass( function( i, val ) {
-		if ( this.id !== "_firebugConsole" ) {
-			assert.equal( val, old[ i ], "Make sure the incoming value is correct." );
-			return "test";
-		}
+		assert.equal( val, old[ i ], "Make sure the incoming value is correct." );
+		return "test";
 	} );
 
 	pass = true;
@@ -1347,17 +1330,15 @@ QUnit.test( "removeClass(Array) - simple", function( assert ) {
 } );
 
 QUnit.test( "removeClass(Function) with incoming value", function( assert ) {
-	assert.expect( 52 );
+	assert.expect( 57 );
 
 	var $divs = jQuery( "#qunit-fixture div" ).addClass( "test" ), old = $divs.map( function() {
 		return jQuery( this ).attr( "class" );
 	} );
 
 	$divs.removeClass( function( i, val ) {
-		if ( this.id !== "_firebugConsole" ) {
-			assert.equal( val, old[ i ], "Make sure the incoming value is correct." );
-			return "test";
-		}
+		assert.equal( val, old[ i ], "Make sure the incoming value is correct." );
+		return "test";
 	} );
 
 	assert.ok( !$divs.is( ".test" ), "Remove Class" );

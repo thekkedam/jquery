@@ -1,14 +1,9 @@
 define( [
 	"./core",
-	"./core/nodeName",
-	"./core/camelCase",
-	"./core/toType",
-	"./var/isFunction",
-	"./var/isWindow",
 	"./var/slice",
-
+	"./var/trim",
 	"./event/alias"
-], function( jQuery, nodeName, camelCase, toType, isFunction, isWindow, slice ) {
+], function( jQuery, slice, trim ) {
 
 "use strict";
 
@@ -48,7 +43,7 @@ jQuery.proxy = function( fn, context ) {
 
 	// Quick check to determine if target is callable, in the spec
 	// this throws a TypeError, but we will just return undefined.
-	if ( !isFunction( fn ) ) {
+	if ( typeof fn !== "function" ) {
 		return undefined;
 	}
 
@@ -71,28 +66,8 @@ jQuery.holdReady = function( hold ) {
 		jQuery.ready( true );
 	}
 };
-jQuery.isArray = Array.isArray;
-jQuery.parseJSON = JSON.parse;
-jQuery.nodeName = nodeName;
-jQuery.isFunction = isFunction;
-jQuery.isWindow = isWindow;
-jQuery.camelCase = camelCase;
-jQuery.type = toType;
 
-jQuery.now = Date.now;
-
-jQuery.isNumeric = function( obj ) {
-
-	// As of jQuery 3.0, isNumeric is limited to
-	// strings and numbers (primitives or objects)
-	// that can be coerced to finite numbers (gh-2662)
-	var type = jQuery.type( obj );
-	return ( type === "number" || type === "string" ) &&
-
-		// parseFloat NaNs numeric-cast false positives ("")
-		// ...but misinterprets leading-number strings, particularly hex literals ("0x...")
-		// subtraction forces infinities to NaN
-		!isNaN( obj - parseFloat( obj ) );
+jQuery.trim = function( text ) {
+	return text == null ? "" : trim.call( text );
 };
-
 } );

@@ -1,4 +1,4 @@
-QUnit.module( "data", { teardown: moduleTeardown } );
+QUnit.module( "data", { afterEach: moduleTeardown } );
 
 QUnit.test( "expando", function( assert ) {
 	assert.expect( 1 );
@@ -513,16 +513,14 @@ QUnit.test( ".removeData()", function( assert ) {
 	assert.equal( div.data( "test.foo" ), undefined, "Make sure data is intact" );
 } );
 
-if ( window.JSON && window.JSON.stringify ) {
-	QUnit.test( "JSON serialization (#8108)", function( assert ) {
-		assert.expect( 1 );
+QUnit.test( "JSON serialization (#8108)", function( assert ) {
+	assert.expect( 1 );
 
-		var obj = { "foo": "bar" };
-		jQuery.data( obj, "hidden", true );
+	var obj = { "foo": "bar" };
+	jQuery.data( obj, "hidden", true );
 
-		assert.equal( JSON.stringify( obj ), "{\"foo\":\"bar\"}", "Expando is hidden from JSON.stringify" );
-	} );
-}
+	assert.equal( JSON.stringify( obj ), "{\"foo\":\"bar\"}", "Expando is hidden from JSON.stringify" );
+} );
 
 QUnit.test( ".data should follow html5 specification regarding camel casing", function( assert ) {
 	assert.expect( 12 );
@@ -722,10 +720,28 @@ QUnit.test( ".data supports interoperable hyphenated/camelCase get/set of proper
 			"2-num-start": {
 				key: "2NumStart",
 				value: true
+			},
+
+			// Vendor prefixes are not treated in a special way.
+			"-ms-foo": {
+				key: "MsFoo",
+				value: true
+			},
+			"-moz-foo": {
+				key: "MozFoo",
+				value: true
+			},
+			"-webkit-foo": {
+				key: "WebkitFoo",
+				value: true
+			},
+			"-fake-foo": {
+				key: "FakeFoo",
+				value: true
 			}
 		};
 
-	assert.expect( 24 );
+	assert.expect( 32 );
 
 	jQuery.each( datas, function( key, val ) {
 		div.data( key, val.value );
@@ -737,6 +753,7 @@ QUnit.test( ".data supports interoperable hyphenated/camelCase get/set of proper
 
 QUnit.test( ".data supports interoperable removal of hyphenated/camelCase properties", function( assert ) {
 	var div = jQuery( "<div/>", { id: "hyphened" } ).appendTo( "#qunit-fixture" ),
+		rdashAlpha = /-([a-z])/g,
 		datas = {
 			"non-empty": "a string",
 			"empty-string": "",
@@ -755,11 +772,19 @@ QUnit.test( ".data supports interoperable removal of hyphenated/camelCase proper
 
 	assert.expect( 27 );
 
+	function fcamelCase( all, letter ) {
+		return letter.toUpperCase();
+	}
+
 	jQuery.each( datas, function( key, val ) {
 		div.data( key, val );
 
 		assert.deepEqual( div.data( key ), val, "get: " + key );
-		assert.deepEqual( div.data( jQuery.camelCase( key ) ), val, "get: " + jQuery.camelCase( key ) );
+		assert.deepEqual(
+			div.data( key.replace( rdashAlpha, fcamelCase ) ),
+			val,
+			"get: " + key.replace( rdashAlpha, fcamelCase )
+		);
 
 		div.removeData( key );
 
@@ -832,12 +857,12 @@ QUnit.test( ".removeData supports removal of hyphenated properties via array (#1
 
 // Test originally by Moschel
 QUnit.test( ".removeData should not throw exceptions. (#10080)", function( assert ) {
+	var done = assert.async();
 	assert.expect( 1 );
-	QUnit.stop();
 	var frame = jQuery( "#loadediframe" );
 	jQuery( frame[ 0 ].contentWindow ).on( "unload", function() {
 		assert.ok( true, "called unload" );
-		QUnit.start();
+		done();
 	} );
 
 	// change the url to trigger unload

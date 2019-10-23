@@ -1,9 +1,10 @@
 define( [
 	"../core",
+	"../css/isAutoPx",
 	"../css/finalPropName",
 
 	"../css"
-], function( jQuery, finalPropName ) {
+], function( jQuery, isAutoPx, finalPropName ) {
 
 "use strict";
 
@@ -21,7 +22,7 @@ Tween.prototype = {
 		this.options = options;
 		this.start = this.now = this.cur();
 		this.end = end;
-		this.unit = unit || ( jQuery.cssNumber[ prop ] ? "" : "px" );
+		this.unit = unit || ( isAutoPx( prop ) ? "px" : "" );
 	},
 	cur: function() {
 		var hooks = Tween.propHooks[ this.prop ];
@@ -93,16 +94,6 @@ Tween.propHooks = {
 			} else {
 				tween.elem[ tween.prop ] = tween.now;
 			}
-		}
-	}
-};
-
-// Support: IE <=9 only
-// Panic based approach to setting things on disconnected nodes
-Tween.propHooks.scrollTop = Tween.propHooks.scrollLeft = {
-	set: function( tween ) {
-		if ( tween.elem.nodeType && tween.elem.parentNode ) {
-			tween.elem[ tween.prop ] = tween.now;
 		}
 	}
 };

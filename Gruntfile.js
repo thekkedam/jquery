@@ -1,6 +1,6 @@
-module.exports = function( grunt ) {
-	"use strict";
+"use strict";
 
+module.exports = function( grunt ) {
 	function readOptionalJSON( filepath ) {
 		var stripJSONComments = require( "strip-json-comments" ),
 			data = {};
@@ -14,7 +14,8 @@ module.exports = function( grunt ) {
 
 	var fs = require( "fs" ),
 		gzip = require( "gzip-js" ),
-		isTravis = process.env.TRAVIS;
+		isTravis = process.env.TRAVIS,
+		travisBrowsers = process.env.BROWSERS && process.env.BROWSERS.split( "," );
 
 	if ( !grunt.option( "filename" ) ) {
 		grunt.option( "filename", "jquery.js" );
@@ -38,12 +39,12 @@ module.exports = function( grunt ) {
 			options: {
 				sourceMap: "inline",
 				retainLines: true,
-				plugins: [ "transform-es2015-for-of" ]
+				plugins: [ "@babel/transform-for-of" ]
 			},
 			nodeSmokeTests: {
 				files: {
-					"test/node_smoke_tests/lib/ensure_iterability.js":
-						"test/node_smoke_tests/lib/ensure_iterability_es6.js"
+					"test/data/core/jquery-iterability-transpiled.js":
+						"test/data/core/jquery-iterability-transpiled-es6.js"
 				}
 			}
 		},
@@ -64,35 +65,7 @@ module.exports = function( grunt ) {
 					deferred: {
 						remove: [ "ajax", "effects", "queue", "core/ready" ],
 						include: [ "core/ready-no-deferred" ]
-					},
-					sizzle: [ "css/hiddenVisibleSelectors", "effects/animatedSelector" ]
-				}
-			}
-		},
-		npmcopy: {
-			all: {
-				options: {
-					destPrefix: "external"
-				},
-				files: {
-					"sizzle/dist": "sizzle/dist",
-					"sizzle/LICENSE.txt": "sizzle/LICENSE.txt",
-
-					"npo/npo.js": "native-promise-only/npo.js",
-
-					"qunit/qunit.js": "qunitjs/qunit/qunit.js",
-					"qunit/qunit.css": "qunitjs/qunit/qunit.css",
-					"qunit/LICENSE.txt": "qunitjs/LICENSE.txt",
-
-					"qunit-assert-step/qunit-assert-step.js":
-					"qunit-assert-step/qunit-assert-step.js",
-					"qunit-assert-step/MIT-LICENSE.txt":
-					"qunit-assert-step/MIT-LICENSE.txt",
-
-					"requirejs/require.js": "requirejs/require.js",
-
-					"sinon/sinon.js": "sinon/pkg/sinon.js",
-					"sinon/LICENSE.txt": "sinon/LICENSE"
+					}
 				}
 			}
 		},
@@ -120,10 +93,9 @@ module.exports = function( grunt ) {
 		testswarm: {
 			tests: [
 
-				// A special module with basic tests, meant for
-				// not fully supported environments like Android 2.3,
-				// jsdom or PhantomJS. We run it everywhere, though,
-				// to make sure tests are not broken.
+				// A special module with basic tests, meant for not fully
+				// supported environments like jsdom. We run it everywhere,
+				// though, to make sure tests are not broken.
 				"basic",
 
 				"ajax",
@@ -171,13 +143,12 @@ module.exports = function( grunt ) {
 				],
 				files: [
 					"test/data/jquery-1.9.1.js",
-					"external/qunit-assert-step/qunit-assert-step.js",
-					"external/sinon/sinon.js",
-					"external/npo/npo.js",
-					"external/requirejs/require.js",
+					"node_modules/sinon/pkg/sinon.js",
+					"node_modules/native-promise-only/lib/npo.src.js",
+					"node_modules/requirejs/require.js",
 					"test/data/testinit.js",
 
-					"dist/jquery.min.js",
+					"test/jquery.js",
 
 					// Replacement for testinit.js#loadTests()
 					"test/data/testrunner.js",
@@ -205,11 +176,11 @@ module.exports = function( grunt ) {
 					"test/unit/tween.js",
 					"test/unit/ready.js",
 
-					{ pattern: "dist/jquery.js", included: false, served: true },
-					{ pattern: "dist/*.map", included: false, served: true },
-					{ pattern: "external/qunit/qunit.css", included: false, served: true },
+					{ pattern: "dist/jquery.*", included: false, served: true },
+					{ pattern: "src/**", included: false, served: true },
+					{ pattern: "node_modules/**", included: false, served: true },
 					{
-						pattern: "test/**/*.@(js|css|jpg|html|xml)",
+						pattern: "test/**/*.@(js|css|jpg|html|xml|svg)",
 						included: false,
 						served: true
 					}
@@ -221,9 +192,33 @@ module.exports = function( grunt ) {
 				singleRun: true
 			},
 			main: {
+				browsers: isTravis && travisBrowsers || [ "ChromeHeadless", "FirefoxHeadless" ]
+			},
 
-				// The Chrome sandbox doesn't work on Travis.
-				browsers: [ isTravis ? "ChromeHeadlessNoSandbox" : "ChromeHeadless" ]
+			jsdom: {
+				options: {
+					files: [
+						"test/data/jquery-1.9.1.js",
+						"test/data/testinit-jsdom.js",
+
+						// We don't support various loading methods like AMD,
+						// choosing a version etc. for jsdom.
+						"dist/jquery.js",
+
+						// Replacement for testinit.js#loadTests()
+						"test/data/testrunner.js",
+
+						// jsdom only runs basic tests
+						"test/unit/basic.js",
+
+						{
+							pattern: "test/**/*.@(js|css|jpg|html|xml|svg)",
+							included: false,
+							served: true
+						}
+					]
+				},
+				browsers: [ "jsdom" ]
 			},
 
 			// To debug tests with Karma:
@@ -238,6 +233,10 @@ module.exports = function( grunt ) {
 			},
 			"firefox-debug": {
 				browsers: [ "Firefox" ],
+				singleRun: false
+			},
+			"ie-debug": {
+				browsers: [ "IE" ],
 				singleRun: false
 			}
 		},
@@ -258,23 +257,13 @@ module.exports = function( grunt ) {
 						"dist/<%= grunt.option('filename').replace('.js', '.min.map') %>",
 					report: "min",
 					output: {
-						"ascii_only": true,
-
-						// Support: Android 4.0 only
-						// UglifyJS 3 breaks Android 4.0 if this option is not enabled.
-						// This is in lieu of setting ie8 for all of mangle, compress, and output
-						"ie8": true
+						"ascii_only": true
 					},
 					banner: "/*! jQuery v<%= pkg.version %> | " +
 						"(c) JS Foundation and other contributors | jquery.org/license */",
 					compress: {
 						"hoist_funs": false,
-						loops: false,
-
-						// Support: IE <11
-						// typeofs transformation is unsafe for IE9-10
-						// See https://github.com/mishoo/UglifyJS2/issues/2198
-						typeofs: false
+						loops: false
 					}
 				}
 			}
@@ -307,7 +296,10 @@ module.exports = function( grunt ) {
 	] );
 
 	grunt.registerTask( "test:fast", "node_smoke_tests" );
-	grunt.registerTask( "test:slow", "promises_aplus_tests" );
+	grunt.registerTask( "test:slow", [
+		"promises_aplus_tests",
+		"karma:jsdom"
+	] );
 
 	grunt.registerTask( "test", [
 		"test:fast",

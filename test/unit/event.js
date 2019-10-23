@@ -1,8 +1,8 @@
 QUnit.module( "event", {
-	setup: function() {
+	beforeEach: function() {
 		document.body.focus();
 	},
-	teardown: moduleTeardown
+	afterEach: moduleTeardown
 } );
 
 QUnit.test( "null or undefined handler", function( assert ) {
@@ -1414,11 +1414,12 @@ QUnit.test( "Submit event can be stopped (#11049)", function( assert ) {
 	form.remove();
 } );
 
-// Support: iOS 7 - 9
+// Support: iOS <=7 - 12+
 // iOS has the window.onbeforeunload field but doesn't support the beforeunload
 // handler making it impossible to feature-detect the support.
 QUnit[ /(ipad|iphone|ipod)/i.test( navigator.userAgent ) ? "skip" : "test" ](
-	"on(beforeunload)", 1, function( assert ) {
+	"on(beforeunload)", function( assert ) {
+	assert.expect( 1 );
 	var iframe = jQuery( jQuery.parseHTML( "<iframe src='" + baseURL + "event/onbeforeunload.html'><iframe>" ) );
 	var done = assert.async();
 
@@ -1796,7 +1797,7 @@ QUnit.test( "jQuery.off using dispatched jQuery.Event", function( assert ) {
 } );
 
 // selector-native does not support scope-fixing in delegation
-QUnit[ jQuery.find.compile ? "test" : "skip" ]( "delegated event with delegateTarget-relative selector", function( assert ) {
+QUnit[ QUnit.jQuerySelectors ? "test" : "skip" ]( "delegated event with delegateTarget-relative selector", function( assert ) {
 	assert.expect( 3 );
 	var markup = jQuery( "<div><ul><li><a id=\"a0\"></a><ul id=\"ul0\"><li class=test><a id=\"a0_0\"></a></li><li><a id=\"a0_1\"></a></li></ul></li></ul></div>" ).appendTo( "#qunit-fixture" );
 
@@ -1814,18 +1815,23 @@ QUnit[ jQuery.find.compile ? "test" : "skip" ]( "delegated event with delegateTa
 		.find( "#a0_0" ).trigger( "click" ).end()
 		.off( "click" );
 
-	// Positional selector (#11315)
-	markup.find( "ul" ).eq( 0 )
-		.on( "click", ">li>a", function() {
-			assert.ok( this.id === "a0", "child li was clicked" );
-		} )
-		.find( "#ul0" )
-			.on( "click", "li:first>a", function() {
-				assert.ok( this.id === "a0_0", "first li under #u10 was clicked" );
+	if ( QUnit.jQuerySelectorsPos ) {
+		// Positional selector (#11315)
+		markup.find( "ul" ).eq( 0 )
+			.on( "click", ">li>a", function() {
+				assert.ok( this.id === "a0", "child li was clicked" );
 			} )
-		.end()
-		.find( "a" ).trigger( "click" ).end()
-		.find( "#ul0" ).off();
+			.find( "#ul0" )
+				.on( "click", "li:first>a", function() {
+					assert.ok( this.id === "a0_0", "first li under #u10 was clicked" );
+				} )
+			.end()
+			.find( "a" ).trigger( "click" ).end()
+			.find( "#ul0" ).off();
+	} else {
+		assert.ok( "skip", "Positional selectors are not supported" );
+		assert.ok( "skip", "Positional selectors are not supported" );
+	}
 
 	markup.remove();
 } );
@@ -2382,11 +2388,13 @@ QUnit.test( "clone() delegated events (#11076)", function( assert ) {
 	clone.remove();
 } );
 
-QUnit.test( "checkbox state (#3827)", function( assert ) {
-	assert.expect( 9 );
+QUnit.test( "checkbox state (trac-3827)", function( assert ) {
+	assert.expect( 16 );
 
-	var markup = jQuery( "<div><input type=checkbox><div>" ).appendTo( "#qunit-fixture" ),
+	var markup = jQuery( "<div class='parent'><input type=checkbox><div>" ),
 		cb = markup.find( "input" )[ 0 ];
+
+	markup.appendTo( "#qunit-fixture" );
 
 	jQuery( cb ).on( "click", function() {
 		assert.equal( this.checked, false, "just-clicked checkbox is not checked" );
@@ -2397,18 +2405,31 @@ QUnit.test( "checkbox state (#3827)", function( assert ) {
 
 	// Native click
 	cb.checked = true;
-	assert.equal( cb.checked, true, "native - checkbox is initially checked" );
+	assert.equal( cb.checked, true, "native event - checkbox is initially checked" );
 	cb.click();
-	assert.equal( cb.checked, false, "native - checkbox is no longer checked" );
+	assert.equal( cb.checked, false, "native event - checkbox is no longer checked" );
 
 	// jQuery click
 	cb.checked = true;
-	assert.equal( cb.checked, true, "jQuery - checkbox is initially checked" );
+	assert.equal( cb.checked, true, "jQuery event - checkbox is initially checked" );
 	jQuery( cb ).trigger( "click" );
-	assert.equal( cb.checked, false, "jQuery - checkbox is no longer checked" );
+	assert.equal( cb.checked, false, "jQuery event - checkbox is no longer checked" );
 
 	// Handlers only; checkbox state remains false
 	jQuery( cb ).triggerHandler( "click" );
+	assert.equal( cb.checked, false, "handlers only - checkbox is still unchecked" );
+
+	// Trigger parameters are preserved (trac-13353, gh-4139)
+	cb.checked = true;
+	assert.equal( cb.checked, true, "jQuery event with data - checkbox is initially checked" );
+	jQuery( cb ).on( "click", function( e, data ) {
+		assert.equal( data, "clicked", "trigger data passed to handler" );
+	} );
+	markup.on( "click", function( e, data ) {
+		assert.equal( data, "clicked", "trigger data passed to bubbled handler" );
+	} );
+	jQuery( cb ).trigger( "click", [ "clicked" ] );
+	assert.equal( cb.checked, false, "jQuery event with data - checkbox is no longer checked" );
 } );
 
 QUnit.test( "event object properties on natively-triggered event", function( assert ) {
@@ -2418,7 +2439,7 @@ QUnit.test( "event object properties on natively-triggered event", function( ass
 		$link = jQuery( link ),
 		evt = document.createEvent( "MouseEvents" );
 
-	// Support: IE <=9 - 11 only
+	// Support: IE <=9 - 11+
 	// IE requires element to be in the body before it will dispatch
 	$link.appendTo( "body" ).on( "click", function( e ) {
 
@@ -2875,18 +2896,16 @@ QUnit.test(
 QUnit.test( "originalEvent type of simulated event", function( assert ) {
 	assert.expect( 2 );
 
-	var done = assert.async(),
-		outer = jQuery(
+	var outer = jQuery(
 			"<div id='donor-outer'>" +
 				"<form id='donor-form'>" +
-					"<input id='donor-input' type='checkbox' />" +
+					"<input id='donor-input' type='text' />" +
 				"</form>" +
 			"</div>"
 		).appendTo( "#qunit-fixture" ),
 		input = jQuery( "#donor-input" ),
-		expectedType = jQuery.support.focusin ? "focusin" : "focus",
+		done = assert.async(),
 		finish = function() {
-			finish = null;
 
 			// Remove jQuery handlers to ensure removal of capturing handlers on the document
 			outer.off( "focusin" );
@@ -2896,23 +2915,15 @@ QUnit.test( "originalEvent type of simulated event", function( assert ) {
 
 	outer.on( "focusin", function( event ) {
 		assert.equal( event.type, "focusin", "focusin event at ancestor" );
-		assert.equal( event.originalEvent.type, expectedType,
+		assert.equal( event.originalEvent.type, "click",
 			"focus event at ancestor has correct originalEvent type" );
 		setTimeout( finish );
 	} );
-	input.trigger( "focus" );
 
-	// DOM focus is unreliable in TestSwarm; set a simulated event workaround timeout
-	setTimeout( function() {
-		if ( !finish ) {
-			return;
-		}
-		input[ 0 ].addEventListener( "click", function( nativeEvent ) {
-			expectedType = nativeEvent.type;
-			jQuery.event.simulate( "focusin", this, jQuery.event.fix( nativeEvent ) );
-		} );
-		input[ 0 ].click();
-	}, QUnit.config.testTimeout / 4 || 1000 );
+	input[ 0 ].addEventListener( "click", function( nativeEvent ) {
+		jQuery.event.simulate( "focusin", this, jQuery.event.fix( nativeEvent ) );
+	} );
+	input[ 0 ].click();
 } );
 
 QUnit.test( "trigger('click') on radio passes extra params", function( assert ) {
@@ -2925,57 +2936,80 @@ QUnit.test( "trigger('click') on radio passes extra params", function( assert ) 
 	$radio.trigger( "click", [ true ] );
 } );
 
-// Support: IE <=9 only
-// https://msdn.microsoft.com/en-us/library/hh801223(v=vs.85).aspx
-QUnit.test( "VML with special event handlers (trac-7071)", function( assert ) {
-	assert.expect( 1 );
+QUnit.test( "focusout/focusin support", function( assert ) {
+	assert.expect( 6 );
 
-	var ns = jQuery( "<xml:namespace ns='urn:schemas-microsoft-com:vml' prefix='v' />" ).appendTo( "head" );
+	var focus,
+		parent = jQuery( "<div>" ),
+		input = jQuery( "<input>" ),
+		inputExternal = jQuery( "<input>" ),
 
-	jQuery( "<v:oval id='oval' style='width:100pt;height:75pt;' fillcolor='red'> </v:oval>" ).appendTo( "#form" );
-	jQuery( "#form" ).on( "keydown", function() {
-		assert.ok( true, "no error was thrown" );
-	} );
-	jQuery( "#oval" ).trigger( "click" ).trigger( "keydown" );
-	ns.remove();
-} );
+		// Support: IE <=9 - 11+
+		// focus and blur events are asynchronous; this is the resulting mess.
+		// The browser window must be topmost for this to work properly!!
+		done = assert.async();
 
-QUnit.test( "Check order of focusin/focusout events", function( assert ) {
-	assert.expect( 2 );
+	parent.append( input );
+	jQuery( "#qunit-fixture" ).append( parent ).append( inputExternal );
 
-	var focus, blur,
-		input = jQuery( "#name" );
+	// initially, lose focus
+	inputExternal[ 0 ].focus();
 
-	input
-		.on( "focus", function() {
-			focus = true;
-		} )
-		.on( "focusin", function() {
-			assert.ok( !focus, "Focusin event should fire before focus does" );
-			focus = true;
-		} )
-		.on( "blur", function() {
-			blur = true;
-		} )
-		.on( "focusout", function() {
-			assert.ok( !blur, "Focusout event should fire before blur does" );
-			blur = true;
-		} );
+	setTimeout( function() {
+		parent
+			.on( "focus", function() {
+				assert.ok( false, "parent: focus not fired" );
+			} )
+			.on( "focusin", function() {
+				assert.ok( true, "parent: focusin fired" );
+			} )
+			.on( "blur", function() {
+				assert.ok( false, "parent: blur not fired" );
+			} )
+			.on( "focusout", function() {
+				assert.ok( true, "parent: focusout fired" );
+			} );
 
-	// gain focus
-	input.trigger( "focus" );
+		input
+			.on( "focus", function() {
+				assert.ok( true, "element: focus fired" );
+			} )
+			.on( "focusin", function() {
+				assert.ok( true, "element: focusin fired" );
+				focus = true;
+			} )
+			.on( "blur", function() {
+				assert.ok( true, "parent: blur fired" );
+			} )
+			.on( "focusout", function() {
+				assert.ok( true, "element: focusout fired" );
+			} );
 
-	// then lose it
-	jQuery( "#search" ).trigger( "focus" );
+		// gain focus
+		input[ 0 ].focus();
 
-	// cleanup
-	input.off();
+		// then lose it
+		inputExternal[ 0 ].focus();
 
-	// DOM focus is unreliable in TestSwarm
-	if ( !focus ) {
-		assert.ok( true, "GAP: Could not observe focus change" );
-		assert.ok( true, "GAP: Could not observe focus change" );
-	}
+		setTimeout( function() {
+
+			// DOM focus is unreliable in TestSwarm
+			if ( QUnit.isSwarm && !focus ) {
+				assert.ok( true, "GAP: Could not observe focus change" );
+				assert.ok( true, "GAP: Could not observe focus change" );
+				assert.ok( true, "GAP: Could not observe focus change" );
+				assert.ok( true, "GAP: Could not observe focus change" );
+				assert.ok( true, "GAP: Could not observe focus change" );
+				assert.ok( true, "GAP: Could not observe focus change" );
+			}
+
+			// cleanup
+			parent.off();
+			input.off();
+
+			done();
+		}, 50 );
+	}, 50 );
 } );
 
 QUnit.test( "focus-blur order (#12868)", function( assert ) {
@@ -2983,11 +3017,11 @@ QUnit.test( "focus-blur order (#12868)", function( assert ) {
 
 	var order,
 		$text = jQuery( "#text1" ),
-		$radio = jQuery( "#radio1" ).trigger( "focus" ),
+		$radio = jQuery( "#radio1" ),
 
-		// Support: IE <=10 only
-		// IE8-10 fire focus/blur events asynchronously; this is the resulting mess.
-		// IE's browser window must be topmost for this to work properly!!
+		// Support: IE <=9 - 11+
+		// focus and blur events are asynchronous; this is the resulting mess.
+		// The browser window must be topmost for this to work properly!!
 		done = assert.async();
 
 	$radio[ 0 ].focus();
@@ -3016,7 +3050,7 @@ QUnit.test( "focus-blur order (#12868)", function( assert ) {
 		setTimeout( function() {
 
 			// DOM focus is unreliable in TestSwarm
-			if ( order === 0 ) {
+			if ( QUnit.isSwarm && order === 0 ) {
 				assert.ok( true, "GAP: Could not observe focus change" );
 				assert.ok( true, "GAP: Could not observe focus change" );
 			}
@@ -3034,3 +3068,140 @@ QUnit.test( "focus-blur order (#12868)", function( assert ) {
 		}, 50 );
 	}, 50 );
 } );
+
+QUnit.test( "Event handling works with multiple async focus events (gh-4350)", function( assert ) {
+	assert.expect( 3 );
+
+	var remaining = 3,
+		input = jQuery( "#name" ),
+
+		// Support: IE <=9 - 11+
+		// focus and blur events are asynchronous; this is the resulting mess.
+		// The browser window must be topmost for this to work properly!!
+		done = assert.async();
+
+	input
+		.on( "focus", function() {
+			remaining--;
+			assert.ok( true, "received focus event, expecting " + remaining + " more" );
+			if ( remaining > 0 ) {
+				input.trigger( "blur" );
+			} else {
+				done();
+			}
+		} )
+		.on( "blur", function() {
+			setTimeout( function() {
+				input.trigger( "focus" );
+			} );
+		} );
+
+	// gain focus
+	input.trigger( "focus" );
+
+	// DOM focus is unreliable in TestSwarm
+	setTimeout( function() {
+		if ( QUnit.isSwarm && remaining === 3 ) {
+			assert.ok( true, "GAP: Could not observe focus change" );
+			assert.ok( true, "GAP: Could not observe focus change" );
+			assert.ok( true, "GAP: Could not observe focus change" );
+			setTimeout( function() {
+				done();
+			} );
+		}
+	} );
+} );
+
+QUnit.test( "native-backed events preserve trigger data (gh-1741, gh-4139)", function( assert ) {
+	assert.expect( 17 );
+
+	var parent = supportjQuery(
+			"<div class='parent'><input type='checkbox'><input type='radio'></div>"
+		).appendTo( "#qunit-fixture" ),
+		targets = jQuery( parent[ 0 ].childNodes ),
+		checkbox = jQuery( targets[ 0 ] ),
+		data = [ "arg1", "arg2" ],
+		slice = data.slice,
+
+		// Support: IE <=9 - 11+
+		// focus and blur events are asynchronous; this is the resulting mess.
+		// The browser window must be topmost for this to work properly!!
+		done = assert.async();
+
+	// click (gh-4139)
+	assert.strictEqual( targets[ 0 ].checked, false, "checkbox unchecked before click" );
+	assert.strictEqual( targets[ 1 ].checked, false, "radio unchecked before click" );
+	targets.add( parent ).on( "click", function( event ) {
+		var type = event.target.type,
+			level = event.currentTarget === parent[ 0 ] ? "parent" : "";
+		assert.strictEqual( event.target.checked, true,
+			type + " toggled before invoking " + level + " handler" );
+		assert.deepEqual( slice.call( arguments, 1 ), data,
+			type + " " + level + " handler received correct data" );
+	} );
+	targets.trigger( "click", data );
+	assert.strictEqual( targets[ 0 ].checked, true,
+		"checkbox toggled after click (default action)" );
+	assert.strictEqual( targets[ 1 ].checked, true,
+		"radio toggled after event (default action)" );
+
+	// focus (gh-1741)
+	assert.notEqual( document.activeElement, checkbox[ 0 ],
+		"element not focused before focus event" );
+	checkbox.on( "focus blur", function( event ) {
+		var type = event.type;
+		assert.deepEqual( slice.call( arguments, 1 ), data,
+			type + " handler received correct data" );
+	} );
+	checkbox.trigger( "focus", data );
+	setTimeout( function() {
+		assert.strictEqual( document.activeElement, checkbox[ 0 ],
+			"element focused after focus event (default action)" );
+		checkbox.trigger( "blur", data );
+		setTimeout( function() {
+			assert.notEqual( document.activeElement, checkbox[ 0 ],
+				"element not focused after blur event (default action)" );
+			done();
+		}, 50 );
+	}, 50 );
+} );
+
+// TODO replace with an adaptation of
+// https://github.com/jquery/jquery/pull/1367/files#diff-a215316abbaabdf71857809e8673ea28R2464
+( function() {
+	supportjQuery.each(
+		{
+			checkbox: "<input type='checkbox'>",
+			radio: "<input type='radio'>"
+		},
+		makeTestFor3751
+	);
+
+	function makeTestFor3751( type, html ) {
+		var testName = "native-backed namespaced clicks are handled correctly (gh-3751) - " + type;
+		QUnit.test( testName, function( assert ) {
+			assert.expect( 2 );
+
+			var parent = supportjQuery( "<div class='parent'>" + html + "</div>" ),
+				target = jQuery( parent[ 0 ].firstChild );
+
+			parent.appendTo( "#qunit-fixture" );
+
+			target.add( parent )
+				.on( "click.notFired", function( event ) {
+					assert.ok( false, "namespaced event should not be received" +
+						" by wrong-namespace listener at " + event.currentTarget.nodeName );
+				} )
+				.on( "click.fired", function( event ) {
+					assert.equal( event.target.checked, true,
+						"toggled before invoking handler at " + event.currentTarget.nodeName );
+				} )
+				.on( "click", function( event ) {
+					assert.ok( false, "namespaced event should not be received" +
+						" by non-namespaced listener at " + event.currentTarget.nodeName );
+				} );
+
+			target.trigger( "click.fired" );
+		} );
+	}
+} )();

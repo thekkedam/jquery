@@ -1,8 +1,7 @@
 define( [
 	"../core",
-	"../core/toType",
-	"../var/isFunction"
-], function( jQuery, toType, isFunction ) {
+	"../core/toType"
+], function( jQuery, toType ) {
 
 "use strict";
 
@@ -24,7 +23,7 @@ var access = function( elems, fn, key, value, chainable, emptyGet, raw ) {
 	} else if ( value !== undefined ) {
 		chainable = true;
 
-		if ( !isFunction( value ) ) {
+		if ( typeof value !== "function" ) {
 			raw = true;
 		}
 
@@ -38,7 +37,7 @@ var access = function( elems, fn, key, value, chainable, emptyGet, raw ) {
 			// ...except when executing function values
 			} else {
 				bulk = fn;
-				fn = function( elem, key, value ) {
+				fn = function( elem, _key, value ) {
 					return bulk.call( jQuery( elem ), value );
 				};
 			}

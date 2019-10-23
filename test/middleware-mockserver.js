@@ -21,7 +21,7 @@ var mocks = {
 				resp.writeHead( 200, { "content-type": "text/javascript" } );
 			} else {
 				resp.writeHead( 200, { "content-type": "text/html" } );
-				resp.end( "ERROR <script>ok( true, \"mock executed\" );</script>" );
+				resp.end( "ERROR <script>QUnit.assert.ok( true, \"mock executed\" );</script>" );
 			}
 		}, wait );
 	},
@@ -67,14 +67,14 @@ var mocks = {
 		} else {
 			resp.writeHead( 200, { "content-type": "text/html" } );
 		}
-		resp.end( "ok( true, \"mock executed\" );" );
+		resp.end( "QUnit.assert.ok( true, \"mock executed\" );" );
 	},
 	testbar: function( req, resp ) {
 		resp.writeHead( 200 );
 		resp.end(
 			"this.testBar = 'bar'; " +
 			"jQuery('#ap').html('bar'); " +
-			"ok( true, 'mock executed');"
+			"QUnit.assert.ok( true, 'mock executed');"
 		);
 	},
 	json: function( req, resp ) {
@@ -132,10 +132,13 @@ var mocks = {
 		resp.writeHead( 200, {
 			"Sample-Header": "Hello World",
 			"Empty-Header": "",
-			"Sample-Header2": "Hello World 2"
+			"Sample-Header2": "Hello World 2",
+			"List-Header": "Item 1",
+			"list-header": "Item 2",
+			"constructor": "prototype collision (constructor)"
 		} );
 		req.query.keys.split( "|" ).forEach( function( key ) {
-			if ( req.headers[ key.toLowerCase() ] ) {
+			if ( key.toLowerCase() in req.headers ) {
 				resp.write( key + ": " + req.headers[ key.toLowerCase() ] + "\n" );
 			}
 		} );
@@ -204,6 +207,16 @@ var mocks = {
 		var body = fs.readFileSync( __dirname + "/data/csp.include.html" ).toString();
 		resp.end( body );
 	},
+	cspNonce: function( req, resp ) {
+		var testParam = req.query.test ? "-" + req.query.test : "";
+		resp.writeHead( 200, {
+			"Content-Type": "text/html",
+			"Content-Security-Policy": "script-src 'nonce-jquery+hardcoded+nonce'; report-uri /base/test/data/mock.php?action=cspLog"
+		} );
+		var body = fs.readFileSync(
+			__dirname + "/data/csp-nonce" + testParam + ".html" ).toString();
+		resp.end( body );
+	},
 	cspLog: function( req, resp ) {
 		cspLog = "error";
 		resp.writeHead( 200 );
@@ -213,6 +226,18 @@ var mocks = {
 		cspLog = "";
 		resp.writeHead( 200 );
 		resp.end();
+	},
+	errorWithScript: function( req, resp ) {
+		if ( req.query.withScriptContentType ) {
+			resp.writeHead( 404, { "Content-Type": "application/javascript" } );
+		} else {
+			resp.writeHead( 404 );
+		}
+		if ( req.query.callback ) {
+			resp.end( req.query.callback + "( {\"status\": 404, \"msg\": \"Not Found\"} )" );
+		} else {
+			resp.end( "QUnit.assert.ok( false, \"Mock return erroneously executed\" );" );
+		}
 	}
 };
 var handlers = {

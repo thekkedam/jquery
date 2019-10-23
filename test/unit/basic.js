@@ -1,4 +1,4 @@
-QUnit.module( "basic", { teardown: moduleTeardown } );
+QUnit.module( "basic", { afterEach: moduleTeardown } );
 
 if ( jQuery.ajax ) {
 QUnit.test( "ajax", function( assert ) {
@@ -76,12 +76,11 @@ QUnit.test( "show/hide", function( assert ) {
 }
 
 QUnit.test( "core", function( assert ) {
-	assert.expect( 18 );
+	assert.expect( 17 );
 
 	var elem = jQuery( "<div></div><span></span>" );
 
 	assert.strictEqual( elem.length, 2, "Correct number of elements" );
-	assert.strictEqual( jQuery.trim( "  hello   " ), "hello", "jQuery.trim" );
 
 	assert.ok( jQuery.isPlainObject( { "a": 2 } ), "jQuery.isPlainObject(object)" );
 	assert.ok( !jQuery.isPlainObject( "foo" ), "jQuery.isPlainObject(String)" );
@@ -179,7 +178,11 @@ QUnit.test( "manipulation", function( assert ) {
 		".html getter/setter"
 	);
 
-	assert.strictEqual( elem1.append( elem2 )[ 0 ].childNodes[ 1 ], elem2[ 0 ], ".append" );
+	assert.strictEqual(
+		elem1.append( elem2 )[ 0 ].childNodes[ elem1[ 0 ].childNodes.length - 1 ],
+		elem2[ 0 ],
+		".append"
+	);
 	assert.strictEqual( elem1.prepend( elem2 )[ 0 ].childNodes[ 0 ], elem2[ 0 ], ".prepend" );
 
 	child = elem1.find( "span" );
@@ -193,7 +196,9 @@ QUnit.test( "manipulation", function( assert ) {
 	);
 } );
 
-QUnit.test( "offset", function( assert ) {
+// Support: jsdom 13.2+
+// jsdom returns 0 for offset-related properties
+QUnit[ /jsdom\//.test( navigator.userAgent ) ? "skip" : "test" ]( "offset", function( assert ) {
 	assert.expect( 3 );
 
 	var parent = jQuery( "<div style='position:fixed;top:20px;'/>" ).appendTo( "#qunit-fixture" ),

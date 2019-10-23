@@ -1,12 +1,10 @@
 define( [
 	"../core",
 	"../core/stripAndCollapse",
-	"./support",
 	"../core/nodeName",
-	"../var/isFunction",
 
 	"../core/init"
-], function( jQuery, stripAndCollapse, support, nodeName, isFunction ) {
+], function( jQuery, stripAndCollapse, nodeName ) {
 
 "use strict";
 
@@ -43,7 +41,7 @@ jQuery.fn.extend( {
 			return;
 		}
 
-		valueIsFunction = isFunction( value );
+		valueIsFunction = typeof value === "function";
 
 		return this.each( function( i ) {
 			var val;
@@ -86,11 +84,11 @@ jQuery.extend( {
 		option: {
 			get: function( elem ) {
 
-				var val = jQuery.find.attr( elem, "value" );
+				var val = elem.getAttribute( "value" );
 				return val != null ?
 					val :
 
-					// Support: IE <=10 - 11 only
+					// Support: IE <=10 - 11+
 					// option.text throws exceptions (#14686, #14858)
 					// Strip and collapse whitespace
 					// https://html.spec.whatwg.org/#strip-and-collapse-whitespace
@@ -117,9 +115,7 @@ jQuery.extend( {
 				for ( ; i < max; i++ ) {
 					option = options[ i ];
 
-					// Support: IE <=9 only
-					// IE8-9 doesn't update selected after form reset (#2551)
-					if ( ( option.selected || i === index ) &&
+					if ( option.selected &&
 
 							// Don't return options that are disabled or in a disabled optgroup
 							!option.disabled &&
@@ -181,11 +177,6 @@ jQuery.each( [ "radio", "checkbox" ], function() {
 			}
 		}
 	};
-	if ( !support.checkOn ) {
-		jQuery.valHooks[ this ].get = function( elem ) {
-			return elem.getAttribute( "value" ) === null ? "on" : elem.value;
-		};
-	}
 } );
 
 } );

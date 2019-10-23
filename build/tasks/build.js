@@ -4,10 +4,9 @@
  * and includes/excludes specified modules
  */
 
+"use strict";
+
 module.exports = function( grunt ) {
-
-	"use strict";
-
 	var fs = require( "fs" ),
 		requirejs = require( "requirejs" ),
 		Insight = require( "insight" ),
@@ -65,19 +64,12 @@ module.exports = function( grunt ) {
 		if ( /.\/var\//.test( path.replace( process.cwd(), "" ) ) ) {
 			contents = contents
 				.replace(
-					/define\([\w\W]*?return/,
+					/define\(\s*(["'])[\w\W]*?\1[\w\W]*?return/,
 					"var " +
 					( /var\/([\w-]+)/.exec( name )[ 1 ] ) +
 					" ="
 				)
 				.replace( rdefineEnd, "" );
-
-		// Sizzle treatment
-		} else if ( /\/sizzle$/.test( name ) ) {
-			contents = "var Sizzle =\n" + contents
-
-				// Remove EXPOSE lines from Sizzle
-				.replace( /\/\/\s*EXPOSE[\w\W]*\/\/\s*EXPOSE/, "return Sizzle;" );
 
 		} else {
 
@@ -218,11 +210,6 @@ module.exports = function( grunt ) {
 						}
 					} else {
 						grunt.log.error( "Module \"" + module + "\" is a minimum requirement." );
-						if ( module === "selector" ) {
-							grunt.log.error(
-								"If you meant to replace Sizzle, use -sizzle instead."
-							);
-						}
 					}
 				} else {
 					grunt.log.writeln( flag );
@@ -257,13 +244,6 @@ module.exports = function( grunt ) {
 		delete flags[ "*" ];
 		for ( flag in flags ) {
 			excluder( flag );
-		}
-
-		// Handle Sizzle exclusion
-		// Replace with selector-native
-		if ( ( index = excluded.indexOf( "sizzle" ) ) > -1 ) {
-			config.rawText.selector = "define(['./selector-native']);";
-			excluded.splice( index, 1 );
 		}
 
 		// Replace exports/global with a noop noConflict
@@ -372,7 +352,7 @@ module.exports = function( grunt ) {
 
 		// Ask for permission the first time
 		if ( insight.optOut === undefined ) {
-			insight.askPermission( null, function( error, result ) {
+			insight.askPermission( null, function( _error, result ) {
 				exec( result );
 			} );
 		} else {

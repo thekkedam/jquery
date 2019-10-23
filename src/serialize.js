@@ -1,12 +1,11 @@
 define( [
 	"./core",
 	"./core/toType",
-	"./manipulation/var/rcheckableType",
-	"./var/isFunction",
+	"./var/rcheckableType",
 	"./core/init",
 	"./traversing", // filter
 	"./attributes/prop"
-], function( jQuery, toType, rcheckableType, isFunction ) {
+], function( jQuery, toType, rcheckableType ) {
 
 "use strict";
 
@@ -62,13 +61,17 @@ jQuery.param = function( a, traditional ) {
 		add = function( key, valueOrFunction ) {
 
 			// If value is a function, invoke it and use its return value
-			var value = isFunction( valueOrFunction ) ?
+			var value = typeof valueOrFunction === "function" ?
 				valueOrFunction() :
 				valueOrFunction;
 
 			s[ s.length ] = encodeURIComponent( key ) + "=" +
 				encodeURIComponent( value == null ? "" : value );
 		};
+
+	if ( a == null ) {
+		return "";
+	}
 
 	// If an array was passed in, assume that it is an array of form elements.
 	if ( Array.isArray( a ) || ( a.jquery && !jQuery.isPlainObject( a ) ) ) {
@@ -110,7 +113,7 @@ jQuery.fn.extend( {
 				rsubmittable.test( this.nodeName ) && !rsubmitterTypes.test( type ) &&
 				( this.checked || !rcheckableType.test( type ) );
 		} )
-		.map( function( i, elem ) {
+		.map( function( _i, elem ) {
 			var val = jQuery( this ).val();
 
 			if ( val == null ) {

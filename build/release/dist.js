@@ -1,3 +1,5 @@
+"use strict";
+
 module.exports = function( Release, files, complete ) {
 
 	var
@@ -65,7 +67,6 @@ module.exports = function( Release, files, complete ) {
 
 		// Copy dist files
 		var distFolder = Release.dir.dist + "/dist",
-			externalFolder = Release.dir.dist + "/external",
 			readme = fs.readFileSync( Release.dir.dist + "/README.md", "utf8" ),
 			rmIgnore = files
 				.concat( [
@@ -87,10 +88,6 @@ module.exports = function( Release, files, complete ) {
 		files.forEach( function( file ) {
 			shell.cp( "-f", Release.dir.repo + "/" + file, distFolder );
 		} );
-
-		// Copy Sizzle
-		shell.mkdir( "-p", externalFolder );
-		shell.cp( "-rf", Release.dir.repo + "/external/sizzle", externalFolder );
 
 		// Copy other files
 		extras.forEach( function( file ) {
@@ -135,7 +132,8 @@ module.exports = function( Release, files, complete ) {
 		Release.chdir( Release.dir.dist );
 
 		console.log( "Pushing release to dist repo..." );
-		Release.exec( "git push " + distRemote + " master --tags",
+		Release.exec( "git push " + ( Release.isTest ? " --dry-run " : "" ) +
+			distRemote + " master --tags",
 			"Error pushing master and tags to git repo." );
 
 		// Set repo for npm publish
